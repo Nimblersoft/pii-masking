@@ -1,0 +1,25 @@
+services:
+  pii-masking:
+    build: .
+    container_name: pii-masking
+    ports:
+      - "${PORT:-8090}:8090"
+    environment:
+      - PORT=${PORT:-8090}
+      - PII_MASTER_KEY=${PII_MASTER_KEY:-}
+      - PII_HASH_SALT=${PII_HASH_SALT:-}
+      - REQUIRE_API_KEY=${REQUIRE_API_KEY:-false}
+      - INFISICAL_PROJECT_ID=${INFISICAL_PROJECT_ID:-}
+      - INFISICAL_API_URL=${INFISICAL_API_URL:-}
+      - INFISICAL_ENVIRONMENT=${INFISICAL_ENVIRONMENT:-dev}
+      - INFISICAL_CLIENT_ID=${INFISICAL_CLIENT_ID:-}
+      - INFISICAL_CLIENT_SECRET=${INFISICAL_CLIENT_SECRET:-}
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PORT:-8090}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
