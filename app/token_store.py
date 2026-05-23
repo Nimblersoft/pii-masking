@@ -95,6 +95,27 @@ class TokenStore:
             self._tokens[token_id]["last_used"] = _now_iso()
             return True
 
+    def seed_token(self, raw_token: str) -> None:
+        """Register a pre-existing raw token (e.g. from PII_INITIAL_TOKEN env).
+
+        Idempotent: if the token hash already exists, this is a no-op.
+        """
+        token_hash = _hash_token(raw_token)
+        with self._lock:
+            if token_hash in self._hash_to_id:
+                return  # already seeded
+            token_id = str(uuid.uuid4())
+            prefix = raw_token[: len(TOKEN_PREFIX) + 2]
+            self._tokens[token_id] = {
+                "id": token_id,
+                "hash": token_hash,
+                "prefix": prefix,
+                "created_at": _now_iso(),
+                "last_used": None,
+            }
+            self._hash_to_id[token_hash] = token_id
+        print(f"[token_store] Seeded initial token ({prefix}...)", flush=True)
+
     def verify_master_key(self, raw_key: Optional[str]) -> bool:
         if not raw_key:
             return False

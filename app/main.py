@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -65,7 +66,12 @@ class RevokeResponse(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    get_store()
+    store = get_store()
+    # Seed a pre-provisioned token so the container self-provisions on every restart.
+    # PII_API_TOKEN is fetched from Infisical by entrypoint.sh and exported as env var.
+    initial = os.environ.get("PII_API_TOKEN", "").strip()
+    if initial:
+        store.seed_token(initial)
     warm_start()
     yield
 
@@ -78,14 +84,23 @@ app = FastAPI(
 )
 
 
-def require_api_key(x_api_key: Optional[str] = Header(default=None)) -> None:
+def require_api_key(
+    x_api_key: Optional[str] = Header(default=None),
+    authorization: Optional[str] = Header(default=None),
+) -> None:
     store = get_store()
     if not store.require_api_key:
         return
-    if not store.verify_token(x_api_key):
+    # Prefer X-API-Key; fall back to Authorization: Bearer <token>
+    token = x_api_key
+    if not token and authorization:
+        scheme, _, value = authorization.partition(" ")
+        if scheme.lower() == "bearer" and value:
+            token = value
+    if not store.verify_token(token):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing X-API-Key",
+            detail="Invalid or missing API key",
         )
 
 

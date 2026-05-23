@@ -26,17 +26,25 @@ Pass `"return_entities": false` to get only the masked text. Set a stable
 
 ## Token management
 
-```bash
-# Grab the auto-generated master key from startup logs
-export PII_MASTER_KEY=$(docker logs pii-masking 2>&1 | grep -o 'ephemeral master key: [a-f0-9]*' | awk '{print $NF}')
+The `./cli` wrapper automatically resolves `PII_MASTER_KEY` from the running
+container, so you can invoke commands directly:
 
-python cli.py generate
-python cli.py list
-python cli.py revoke <token-id>
+```bash
+./cli generate   # Create a new API token
+./cli list       # List active tokens
+./cli revoke <token-id>  # Revoke a token
 ```
 
-Set `REQUIRE_API_KEY=true` to enforce `X-API-Key` on `/mask`. Default is
-open — suitable for internal-only deployments.
+The wrapper reads `PII_MASTER_KEY` from the running container (or your shell
+environment if set). You can override it:
+
+```bash
+./cli --master-key <key> list
+PII_CONTAINER=my-service ./cli list  # Use a different container name
+```
+
+Set `REQUIRE_API_KEY=true` in your environment to enforce `X-API-Key` on
+`/mask`. Default is open — suitable for internal-only deployments.
 
 ## Configuration
 

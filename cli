@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Thin wrapper: resolves PII_MASTER_KEY from the running container when unset,
+# then delegates to cli.py.
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTAINER="${PII_CONTAINER:-pii-masking}"
+
+if [[ -z "${PII_MASTER_KEY:-}" ]]; then
+    if docker inspect "$CONTAINER" &>/dev/null 2>&1; then
+        # Read from PID 1's env — entrypoint-injected vars (e.g. from Infisical)
+        # aren't visible to a plain `docker exec printenv`.
+        PII_MASTER_KEY=$(docker exec "$CONTAINER" sh -c \
+            'cat /proc/1/environ | tr "\0" "\n" | grep ^PII_MASTER_KEY= | cut -d= -f2-' \
+            2>/dev/null || true)
+    fi
+    if [[ -z "${PII_MASTER_KEY:-}" ]]; then
+        echo "Error: PII_MASTER_KEY is not set and could not be read from container '${CONTAINER}'." >&2
+        echo "  Set it in your environment or pass --master-key." >&2
+        exit 2
+    fi
+fi
+
+export PII_MASTER_KEY
+exec python3 "${SCRIPT_DIR}/cli.py" "$@"
