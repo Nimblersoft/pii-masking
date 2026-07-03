@@ -16,7 +16,10 @@ RUN groupadd --system --gid 1001 appuser \
 WORKDIR /app
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt \
+# Pin build tooling so the image doesn't rely on whatever pip/setuptools the
+# base image happens to ship (the 2026-06-17 dep-scan flagged these; PII-2).
+RUN pip install --no-cache-dir --upgrade "pip==26.1.2" "setuptools==82.0.1" \
+    && pip install --no-cache-dir -r requirements.txt \
     && python -m spacy download en_core_web_sm \
     && python -m spacy download es_core_news_sm
 
