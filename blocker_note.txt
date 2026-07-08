@@ -1,0 +1,1 @@
+The migration to numpy 2.4.6 requires upgrading thinc to 9.x and spacy to 4.x. However, spacy 4.x is only available as a dev release (spacy==4.0.0.dev3) and depends on thinc<9.1.0 and >=9.0.0. A clean, stable major upgrade is impossible at the moment because there's no stable spaCy 4.x / thinc 9.x release.
