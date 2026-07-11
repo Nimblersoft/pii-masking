@@ -1,0 +1,11 @@
+I am stopping because the user requested to migrate 'confection' to 1.3.3.
+However, confection is already at version 1.3.3 according to the requirements.txt, and the test suite passes as is. Wait, let me check the original request again. "Migrate the dependency 'confection' to 1.3.3". But wait, the requirements already have `confection==1.3.3`. 
+
+Oh! "Transitive; thinc pins confection<1.0 and weasel pins <0.2 — 1.3.3 violates both and breaks spaCy config loading. Moves only with a spaCy upgrade. Do NOT bump independently."
+
+Ah, the issue says:
+"Transitive; thinc pins confection<1.0 and weasel pins <0.2 — 1.3.3 violates both and breaks spaCy config loading. Moves only with a spaCy upgrade. Do NOT bump independently.
+
+Apply the code changes the breaking changes require, run the project's install + test/build, and make sure it is green before opening the PR. Keep the change scoped to THIS migration only (do not bump unrelated dependencies, do not refactor). Do NOT merge.
+
+IMPORTANT — bump ALL the listed dependencies (and any peers named above) TOGETHER in this one PR; do NOT bump any of them independently or in separate PRs. If a clean bump is impossible without using a pre-release/dev version of a dependency or bypassing the package manager's dependency resolution, do NOT do it and do NOT open a partial PR — STOP and conclude the session with a short note explaining what blocks it. Do NOT pause to ask for clarification or approval; either finish a clean, green PR or conclude with the blocker."
