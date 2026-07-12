@@ -1,0 +1,6 @@
+The dependency `numpy` needs to be upgraded to `2.4.6`. However, as stated in the instructions, upgrading `numpy` to `2.x` is a C-ABI break and causes `spacy` and `thinc` native extensions compiled against `numpy 1.x` to crash. This requires upgrading `spacy` to `4.x` and `thinc` to `9.x`.
+
+Currently, `spacy 4.x` and `thinc 9.x` are only available as pre-release/dev versions (e.g. `spacy==4.0.0.dev3`, `thinc==9.1.1` or `thinc==9.0.0`). Attempting to install the stable `spacy 4.x` or `thinc 9.x` fails because they don't exist yet in the stable channel.
+When attempting to install the pre-release versions of `spacy` and `thinc` together with `numpy 2.4.6`, we either run into dependency resolution conflicts (e.g. `spacy 4.0.0.dev3` requires `thinc<9.1.0,>=9.0.0` but `thinc 9.0.0` fails to build from source due to Cython pointer errors) or we are forced to bypass the package manager's resolution completely, which violates the strict instructions.
+
+Since a clean bump to `numpy 2.4.6` is impossible without using pre-release/dev versions of its coupled dependencies (`spacy`/`thinc`), I must stop here and conclude the session.
