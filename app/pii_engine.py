@@ -1,3 +1,4 @@
+# Spec: docs/specs/pii-engine.md
 from __future__ import annotations
 
 import hashlib

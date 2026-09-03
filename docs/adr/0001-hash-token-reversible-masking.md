@@ -1,3 +1,10 @@
+---
+title: "ADR-0001: Reversible masking via salted hash tokens"
+type: adr
+status: accepted
+date: 2026-05-22
+---
+
 # Reversible masking via salted hash tokens
 
 We mask PII by replacing each detected value with a placeholder token of the

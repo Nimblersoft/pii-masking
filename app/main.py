@@ -1,3 +1,4 @@
+# Spec: docs/specs/api-endpoints.md
 from __future__ import annotations
 
 import os
