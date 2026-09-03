@@ -33,8 +33,12 @@ python -m spacy download es_core_news_sm
 # 4. Verify the environment is coherent
 pip check
 
-# 5. Run the test suite (warm-starts the engine; ~2s after models load)
+# 5. Run the test suite (warm-starts the engine; ~3s after models load)
 pytest -v tests/
+#    E2E subset only (boots a real uvicorn server on an ephemeral port):
+pytest -m e2e
+#    Everything except E2E:
+pytest -m 'not e2e'
 
 # 6. Run the server locally (optional)
 export PII_HASH_SALT=dev-salt            # stable tokens across restarts
