@@ -167,3 +167,12 @@ with access controls rather than a public route.
   silently unauthenticated.
 - `/health` is intentionally unauthenticated for orchestrator probes.
 - No secrets committed to the repo or baked into the image.
+
+## Documentation lifecycle
+
+Keep specs and other non-ADR docs current-state only; do not use them as changelogs, timelines,
+release notes, or historical change logs. Before release, ADRs may be edited, merged, or
+squashed to retain the latest decision; after release, preserve published ADRs and record later
+decisions in a new superseding ADR. Apply the `context-hygiene` skill before documentation or
+spec writes; link each fact to its SSOT instead of duplicating it. Detailed filing rules live in
+[`docs/docs-organization-blueprint.md`](docs/docs-organization-blueprint.md).
