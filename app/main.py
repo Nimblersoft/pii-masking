@@ -24,6 +24,21 @@ class MaskRequest(BaseModel):
             "echoing PII back."
         ),
     )
+    entities: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Optional list of entity types or output labels to detect "
+            "(e.g. ['PERSON', 'EC_CEDULA', 'PHONE']). Defaults to all supported entities."
+        ),
+    )
+    allow_list: Optional[list[str]] = Field(
+        default=None,
+        description=(
+            "Optional case-insensitive list of domain phrases that must never be masked "
+            "(max 100 items, max 120 characters each). Any detected span overlapping an "
+            "allow-listed phrase is excluded."
+        ),
+    )
 
 
 class EntitySpan(BaseModel):
@@ -122,7 +137,12 @@ def health() -> HealthResponse:
 @app.post("/mask", response_model=MaskResponse, dependencies=[Depends(require_api_key)])
 def mask(req: MaskRequest) -> MaskResponse:
     try:
-        result = get_engine().mask(req.text, language=req.language)
+        result = get_engine().mask(
+            req.text,
+            language=req.language,
+            entities=req.entities,
+            allow_list=req.allow_list,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     entities = result["entities"] if req.return_entities else []

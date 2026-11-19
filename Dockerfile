@@ -24,7 +24,7 @@ RUN pip install --no-cache-dir --upgrade "pip==26.1.2" "setuptools==82.0.1" \
     && python -m spacy download es_core_news_sm
 
 COPY entrypoint.sh .
-COPY app/main.py app/pii_engine.py app/token_store.py app/__init__.py ./app/
+COPY app/main.py app/pii_engine.py app/recognizers.py app/token_store.py app/__init__.py ./app/
 
 RUN chown -R appuser:appuser /app \
     && chmod +x /app/entrypoint.sh

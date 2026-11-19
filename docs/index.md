@@ -61,7 +61,7 @@ Filing rules and frontmatter schemas are SSOT in
 
 ## Specs
 
-- [PII Engine](specs/pii-engine.md) — covers `app/pii_engine.py`
+- [PII Engine](specs/pii-engine.md) — covers `app/pii_engine.py`, `app/recognizers.py`
 - [Token Store](specs/token-store.md) — covers `app/token_store.py`
 - [API Endpoints](specs/api-endpoints.md) — covers `app/main.py`
 

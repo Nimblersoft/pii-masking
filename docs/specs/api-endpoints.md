@@ -3,7 +3,7 @@ title: "Spec: API Endpoints"
 type: spec
 status: active
 covers: app/main.py
-last_checked: 2026-09-03
+last_checked: 2026-11-19
 ---
 
 # API Endpoints — Behavioral Contract
@@ -27,7 +27,11 @@ models, header-based auth.
 
 - `MaskRequest` — `text: str` (required), `language: str = "en"`,
   `return_entities: bool = true` (set false to receive only `masked` and
-  avoid echoing PII back).
+  avoid echoing PII back), `entities: Optional[list[str]] = None` (filter to
+  specific Presidio entity names or output labels; defaults to all supported
+  entities), `allow_list: Optional[list[str]] = None` (case-insensitive domain
+  phrases never masked; max 100 items, max 120 chars each — see
+  [pii-engine.md](pii-engine.md#entity-surface-filtering-and-allow-list)).
 - `EntitySpan` — `text`, `label`, `token`, `start`, `end` (offsets index the
   original text).
 - `MaskResponse` — `masked: str`, `entities: list[EntitySpan]` (empty when
@@ -51,8 +55,8 @@ models, header-based auth.
 
 ## Error behavior
 
-- Unsupported `language` → `ValueError` from the engine → **400** with the
-  engine's message.
+- Unsupported `language`, unknown `entities` entry, or `allow_list` bounds
+  violation → `ValueError` from the engine → **400** with the engine's message.
 - Missing/invalid credentials → **401** `Invalid or missing API key` /
   `Invalid or missing X-Master-Key`.
 - Revoking an unknown token id → **404** `Token not found`.

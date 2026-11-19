@@ -77,20 +77,27 @@ list. The hash is one-way; restoration relies on the returned mapping, not on
 inverting the hash.
 
 Set `return_entities: false` to receive only `masked` (no PII echoed back) when
-restoration isn't needed.
+restoration isn't needed. Optional `entities` (entity names or labels) and
+`allow_list` (case-insensitive domain phrases never masked) are documented in
+[`docs/specs/api-endpoints.md`](docs/specs/api-endpoints.md) and
+[`docs/specs/pii-engine.md`](docs/specs/pii-engine.md).
 
 ### Entity mapping
 
-| Presidio entity   | Output placeholder    |
-|-------------------|-----------------------|
-| `PERSON`          | `[PERSON_<hash>]`     |
-| `ORGANIZATION`    | `[ORG_<hash>]`        |
-| `EMAIL_ADDRESS`   | `[EMAIL_<hash>]`      |
-| `PHONE_NUMBER`    | `[PHONE_<hash>]`      |
-| `CREDIT_CARD`     | `[CREDIT_CARD_<hash>]`|
+| Presidio entity     | Output placeholder      |
+|---------------------|-------------------------|
+| `PERSON`            | `[PERSON_<hash>]`       |
+| `ORGANIZATION`      | `[ORG_<hash>]`          |
+| `EMAIL_ADDRESS`     | `[EMAIL_<hash>]`        |
+| `PHONE_NUMBER`      | `[PHONE_<hash>]`        |
+| `CREDIT_CARD`       | `[CREDIT_CARD_<hash>]`  |
+| `EC_CEDULA`         | `[CEDULA_<hash>]`       |
+| `EC_RUC`            | `[RUC_<hash>]`          |
+| `BANK_ACCOUNT`      | `[ACCOUNT_<hash>]`      |
+| `SECRET_CREDENTIAL` | `[SECRET_<hash>]`       |
 
-Overlapping detections are resolved by Presidio's default scoring (higher
-confidence wins, ties broken by length).
+Overlapping detections are resolved deterministically before anonymization
+(higher confidence wins, ties broken by span length).
 
 ## Token Auth
 

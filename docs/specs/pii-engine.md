@@ -2,14 +2,15 @@
 title: "Spec: PII Engine"
 type: spec
 status: active
-covers: app/pii_engine.py
-last_checked: 2026-09-03
+covers: app/pii_engine.py, app/recognizers.py
+last_checked: 2026-11-19
 ---
 
 # PII Engine — Behavioral Contract
 
-Module: `app/pii_engine.py` · Presidio AnalyzerEngine + AnonymizerEngine over
-spaCy NER, wrapped as a warm-started process-wide singleton.
+Modules: `app/pii_engine.py` · `app/recognizers.py` · Presidio AnalyzerEngine +
+AnonymizerEngine over spaCy NER and custom financial/identity recognizers,
+wrapped as a warm-started process-wide singleton.
 
 ## Responsibilities
 
@@ -42,8 +43,10 @@ Both models are loaded into one spaCy NLP engine via
 
 - `labels_to_ignore: ["O"]`
 - `model_to_presidio_entity_mapping`: `PER`/`PERSON`→PERSON,
-  `ORG`/`ORGANIZATION`/`MISC`→ORGANIZATION, `NORP`→NRP,
-  `GPE`/`LOC`/`FAC`/`LOCATION`→LOCATION, `DATE`/`TIME`→DATE_TIME
+  `ORG`/`ORGANIZATION`→ORGANIZATION, `NORP`→NRP,
+  `GPE`/`LOC`/`FAC`/`LOCATION`→LOCATION, `DATE`/`TIME`→DATE_TIME.
+  `MISC` is intentionally left unmapped so `es_core_news_sm` does not
+  misclassify Spanish banking product titles or prose as `ORGANIZATION`.
 - `low_confidence_score_multiplier: 0.4` — NER labels classified as
   low-confidence get their score multiplied by 0.4 before Presidio's
   decision policy runs.
@@ -54,21 +57,51 @@ with any other language raise `ValueError` (→ HTTP 400 in `app/main.py`).
 
 ## Recognizers
 
-- **SpacyRecognizer** is explicitly registered once per language, restricted
-  to `supported_entities=["PERSON", "ORGANIZATION"]` — NER only contributes
-  those two entity types to results.
-- **Built-in Presidio recognizers** (registered by `AnalyzerEngine` defaults)
-  cover the rest of the surface: email, phone, credit card, and other
-  patterns, including `phonenumbers`-backed phone detection.
-- **No custom locale recognizers exist yet** (e.g. Ecuadorian cédula or
-  local phone formats). Adding one means implementing a Presidio
-  `PatternRecognizer`/`EntityRecognizer` and registering it on
-  `self.analyzer.registry` in `PIIEngine.__init__`; extend this spec and the
-  entity map in the same change.
+Default `SpacyRecognizer` and `PhoneRecognizer` entries are replaced per
+language in `PIIEngine.__init__`:
 
-## Entity surface
+- **NER (`PERSON`, `ORGANIZATION`)**:
+  - `en`: `SpacyRecognizer(supported_entities=["PERSON", "ORGANIZATION"])`.
+  - `es`: `SpanishFilteredSpacyRecognizer` trims polluted leading introducers
+    (e.g. `Soy `, `Hola `), suppresses greetings/sentence-initial verbs/generic
+    banking product false positives, and strips non-noun single-token `PERSON`
+    misdetections. `SpanishPersonContextRecognizer` supplements `es_core_news_sm`
+    for Spanish names after explicit introducer cues (`me llamo`, `mi nombre es`,
+    `soy`, `titular:`, etc.) and rescues multi-word Title-Case Spanish names
+    mis-tagged as `MISC` (e.g. `"María José López"`).
+- **Phone (`PHONE_NUMBER`)**: `PhoneRecognizer` configured with regional
+  support including `EC` and `ES` alongside Presidio defaults, with Spanish
+  phone context words (`tel`, `teléfono`, `cel`, `celular`, `móvil`, `whatsapp`,
+  etc.) for `es`.
+- **Built-in Presidio recognizers** cover `EMAIL_ADDRESS` and `CREDIT_CARD`.
+- **Custom recognizers (`app/recognizers.py`)**, registered for `es` and `en`:
+  - `EcCedulaRecognizer` (`EC_CEDULA`): 10-digit Ecuadorian cédula with strict
+    province (`01..24` or `30`), 3rd digit `0..5`, and modulo-10 check digit.
+    Clause-local context disambiguates against `PHONE_NUMBER`: cédula keywords
+    (`cédula`, `cedula`, `ci`, `c.i.`, `identidad`, `documento`) boost to `0.92`;
+    explicit phone keywords (`tel`, `teléfono`, `cel`, `celular`, `móvil`,
+    `whatsapp`, `+593`) defer so `PHONE_NUMBER` wins; account keywords demote
+    below `BANK_ACCOUNT`.
+  - `EcRucRecognizer` (`EC_RUC`): 13-digit Ecuadorian RUC validating province
+    (`01..24` or `30`), establishment suffix `001..999`, and natural-person
+    (mod-10, 3rd digit `0..5`), private-entity (mod-11, 3rd digit `9`), or
+    public-entity (mod-11, 3rd digit `6`, 10th digit `0`) check digits.
+  - `BankAccountRecognizer` (`BANK_ACCOUNT`): contextual recognizer for
+    bank/coop account triggers (`cuenta`, `cta`, `número de cuenta`,
+    `nro de cuenta`, `iban`, English `account`) followed by 6–20 digit account
+    identifiers (or IBANs). Emits only the account identifier span (`score=0.90`,
+    beating `PHONE_NUMBER`) and rejects monetary amounts (`$5000`, `USD`,
+    `dólares`) and durations (`24 meses`).
+  - `SecretCredentialRecognizer` (`SECRET_CREDENTIAL`): contextual recognizer
+    for passwords, PINs, security codes, and OTPs (`clave`, `contraseña`,
+    `contrasena`, `password`, `pin`, `código de seguridad`, `otp`) followed by
+    `es`/`is`/`:`/`=`. Emits only the secret token span (`score=0.95`, beating
+    NER) and ignores plain prose adjectives (e.g. `"la contraseña es obligatoria"`).
 
-`analyze()` is always called with `entities=SUPPORTED_ENTITIES`:
+## Entity surface, filtering, and allow-list
+
+`mask(text, language="en", entities=None, allow_list=None)` runs all
+`SUPPORTED_ENTITIES` when `entities` is `None`:
 
 | Presidio entity | Output label / token prefix |
 |---|---|
@@ -77,10 +110,24 @@ with any other language raise `ValueError` (→ HTTP 400 in `app/main.py`).
 | `EMAIL_ADDRESS` | `EMAIL` |
 | `PHONE_NUMBER` | `PHONE` |
 | `CREDIT_CARD` | `CREDIT_CARD` |
+| `EC_CEDULA` | `CEDULA` |
+| `EC_RUC` | `RUC` |
+| `BANK_ACCOUNT` | `ACCOUNT` |
+| `SECRET_CREDENTIAL` | `SECRET` |
 
-Overlapping detections are resolved by Presidio's default decision policy
-(higher confidence wins, ties broken by span length) — no custom
-`decision_process` is configured.
+- **`entities` filter**: accepts canonical Presidio entity names or output
+  labels (case-insensitive, deduplicated). Any unknown entry raises `ValueError`
+  (→ HTTP 400). An explicit empty list `[]` masks nothing.
+- **`allow_list` filter**: optional case-insensitive list of domain phrases
+  that must never be masked (max 100 items, max 120 chars each; violations
+  raise `ValueError` → HTTP 400). Word-bounded matches are computed against the
+  source text and applied before overlap resolution; any candidate entity span
+  overlapping an allow-listed span (full, sub-span, or super-span) is excluded.
+- **Overlap resolution**: `_resolve_overlaps()` resolves cross-entity overlaps
+  deterministically (higher confidence wins, ties broken by longer span, then
+  earlier start) before calling `AnonymizerEngine.anonymize(...,
+  merge_entities_with_spaces=False)`, keeping `masked` and `entities` strictly
+  1-to-1.
 
 ## Anonymization
 
